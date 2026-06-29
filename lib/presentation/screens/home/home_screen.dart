@@ -6,6 +6,8 @@ import '../../../core/utils/weather_helpers.dart';
 import '../../providers/weather_provider.dart';
 import '../../widgets/animated_background.dart';
 import '../../widgets/glass_card.dart';
+import '../../widgets/aqi_gauge.dart';
+import '../../widgets/temp_trend_chart.dart';
 import '../settings/settings_screen.dart';
 
 class HomeScreen extends ConsumerWidget {
@@ -81,12 +83,14 @@ class HomeScreen extends ConsumerWidget {
                 slivers: [
                   SliverToBoxAdapter(child: _Header(city: w.city)),
                   SliverToBoxAdapter(child: _HeroTemp(w: w)),
-                  SliverToBoxAdapter(child: _AqiPill(aqi: w.aqi)),
-                  const SliverToBoxAdapter(child: SizedBox(height: 24)),
+                  const SliverToBoxAdapter(child: SizedBox(height: 18)),
                   SliverToBoxAdapter(child: _Hourly(hourly: bundle.hourly)),
-                  const SliverToBoxAdapter(child: SizedBox(height: 20)),
+                  const SliverToBoxAdapter(child: SizedBox(height: 14)),
+                  SliverToBoxAdapter(child: _TrendCard(hourly: bundle.hourly)),
+                  SliverToBoxAdapter(child: _AqiCard(aqi: w.aqi)),
+                  const SliverToBoxAdapter(child: SizedBox(height: 10)),
                   SliverToBoxAdapter(child: _Details(w: w)),
-                  const SliverToBoxAdapter(child: SizedBox(height: 20)),
+                  const SliverToBoxAdapter(child: SizedBox(height: 14)),
                   SliverToBoxAdapter(child: _Daily(daily: bundle.daily)),
                   SliverToBoxAdapter(child: _Outfit(w: w)),
                   const SliverToBoxAdapter(child: SizedBox(height: 100)),
@@ -176,61 +180,153 @@ class _HeroTemp extends StatelessWidget {
   final CurrentWeather w;
   const _HeroTemp({required this.w});
   @override
-  Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 24),
-        child: Column(children: [
-          Text(WeatherHelpers.getWeatherEmoji(w.conditionCode), style: const TextStyle(fontSize: 56)),
-          const SizedBox(height: 8),
-          Text('${w.temp.round()}°',
-              style: const TextStyle(
-                  fontSize: 96, fontWeight: FontWeight.w100, color: AppColors.textWhite, height: 1.0, letterSpacing: -4)),
-          const SizedBox(height: 4),
-          Text(w.description.isEmpty ? '' : w.description[0].toUpperCase() + w.description.substring(1),
-              style: const TextStyle(fontSize: 18, color: AppColors.textGrey)),
-          const SizedBox(height: 8),
-          Text('H:${w.tempMax.round()}°  L:${w.tempMin.round()}°  Feels ${w.feelsLike.round()}°',
-              style: const TextStyle(fontSize: 14, color: AppColors.textMuted)),
-        ]),
-      );
+  Widget build(BuildContext context) {
+    final desc = w.description.isEmpty
+        ? ''
+        : w.description[0].toUpperCase() + w.description.substring(1);
+    return Container(
+      margin: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+      padding: const EdgeInsets.fromLTRB(24, 22, 24, 22),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(32),
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF8E7BFF), Color(0xFF6C63FF), Color(0xFF4364F7)],
+        ),
+        boxShadow: [
+          BoxShadow(
+              color: AppColors.primary.withOpacity(0.45),
+              blurRadius: 30,
+              offset: const Offset(0, 14)),
+        ],
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(desc,
+                    style: const TextStyle(
+                        color: Colors.white70,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w500)),
+                const SizedBox(height: 6),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('${w.temp.round()}',
+                        style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 80,
+                            fontWeight: FontWeight.w300,
+                            height: 1.0,
+                            letterSpacing: -2)),
+                    const Padding(
+                      padding: EdgeInsets.only(top: 10),
+                      child: Text('°',
+                          style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 36,
+                              fontWeight: FontWeight.w300)),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Text(
+                    'H:${w.tempMax.round()}°   L:${w.tempMin.round()}°   Feels ${w.feelsLike.round()}°',
+                    style: const TextStyle(color: Colors.white70, fontSize: 13)),
+              ],
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.all(6),
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(color: Colors.white.withOpacity(0.28), blurRadius: 34),
+              ],
+            ),
+            child: Text(WeatherHelpers.getWeatherEmoji(w.conditionCode),
+                style: const TextStyle(fontSize: 78)),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
-class _AqiPill extends StatelessWidget {
+class _AqiCard extends StatelessWidget {
   final int aqi;
-  const _AqiPill({required this.aqi});
+  const _AqiCard({required this.aqi});
   @override
   Widget build(BuildContext context) {
     if (aqi <= 0) return const SizedBox.shrink();
     final color = AppColors.getAqiColor(aqi);
-    return Center(
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: () => _showDetailSheet(
-          context,
-          'Air Quality · AQI $aqi',
-          '${WeatherHelpers.getAqiLevel(aqi)}\n\n${_aqiAdvice(aqi)}',
-          accent: color,
-        ),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          decoration: BoxDecoration(
-            color: color.withOpacity(0.12),
-            borderRadius: BorderRadius.circular(30),
-            border: Border.all(color: color.withOpacity(0.4)),
-            boxShadow: [BoxShadow(color: color.withOpacity(0.2), blurRadius: 12)],
-          ),
-          child: Row(mainAxisSize: MainAxisSize.min, children: [
-            Container(width: 8, height: 8, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
-            const SizedBox(width: 8),
-            Text('AQI $aqi', style: TextStyle(color: color, fontWeight: FontWeight.w700, fontSize: 14)),
-            const SizedBox(width: 6),
-            Text('• ${WeatherHelpers.getAqiLevel(aqi)}', style: TextStyle(color: color.withOpacity(0.8), fontSize: 13)),
-            const SizedBox(width: 6),
-            Icon(Icons.chevron_right, color: color.withOpacity(0.7), size: 16),
-          ]),
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () => _showDetailSheet(
+        context,
+        'Air Quality · AQI $aqi',
+        '${WeatherHelpers.getAqiLevel(aqi)}\n\n${_aqiAdvice(aqi)}',
+        accent: color,
+      ),
+      child: GlassCard(
+        child: Row(
+          children: [
+            AqiGauge(aqi: aqi, size: 132),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('AIR QUALITY',
+                      style: TextStyle(
+                          color: AppColors.textMuted,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 1.5)),
+                  const SizedBox(height: 8),
+                  Text(WeatherHelpers.getAqiLevel(aqi),
+                      style: TextStyle(
+                          color: color,
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700)),
+                  const SizedBox(height: 6),
+                  Text(_aqiAdvice(aqi),
+                      style: const TextStyle(
+                          color: AppColors.textGrey, fontSize: 12, height: 1.4)),
+                ],
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
+}
+
+class _TrendCard extends StatelessWidget {
+  final List<HourlyData> hourly;
+  const _TrendCard({required this.hourly});
+  @override
+  Widget build(BuildContext context) => GlassCard(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('TEMPERATURE TREND',
+                style: TextStyle(
+                    color: AppColors.textMuted,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 1.5)),
+            const SizedBox(height: 16),
+            TempTrendChart(hourly: hourly),
+          ],
+        ),
+      );
 }
 
 class _Hourly extends StatelessWidget {
