@@ -1,8 +1,8 @@
 workflows:
   android-release:
     name: Aqistat Android Release
-    # Linux is cheaper and plenty for Android. Change to mac_mini_m2 if you prefer.
-    instance_type: linux_x2
+    # Free plan includes macOS M-series minutes; it builds Android fine.
+    instance_type: mac_mini_m2
     max_build_duration: 60
     environment:
       flutter: stable
