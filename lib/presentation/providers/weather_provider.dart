@@ -1,142 +1,51 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../data/models/weather_model.dart';
-import '../../data/models/location_model.dart';
-import '../../data/services/weather_api_service.dart';
-import '../../data/services/location_service.dart';
+import 'package:flutter/material.dart';
 
-/// Weather API service provider
-final weatherApiServiceProvider = Provider<WeatherApiService>((ref) {
-  return WeatherApiService();
-});
-
-/// Location service provider
-final locationServiceProvider = Provider<LocationService>((ref) {
-  return LocationService();
-});
-
-/// Current selected location
-final currentLocationProvider = StateNotifierProvider<CurrentLocationNotifier, AsyncValue<SavedLocation?>>((ref) {
-  return CurrentLocationNotifier(ref.watch(locationServiceProvider));
-});
-
-/// Current weather data
-final currentWeatherProvider = FutureProvider.autoDispose<WeatherData?>((ref) async {
-  final location = ref.watch(currentLocationProvider);
-  final weatherService = ref.watch(weatherApiServiceProvider);
-
-  return location.when(
-    data: (loc) async {
-      if (loc == null) return null;
-      return await weatherService.getCurrentWeather(loc.lat, loc.lon);
-    },
-    loading: () => null,
-    error: (_, __) => null,
-  );
-});
-
-/// Hourly forecast (48 hours)
-final hourlyForecastProvider = FutureProvider.autoDispose<List<HourlyForecast>>((ref) async {
-  final location = ref.watch(currentLocationProvider);
-  final weatherService = ref.watch(weatherApiServiceProvider);
-
-  return location.when(
-    data: (loc) async {
-      if (loc == null) return [];
-      final oneCall = await weatherService.getOneCallData(loc.lat, loc.lon);
-      return oneCall.hourly;
-    },
-    loading: () => [],
-    error: (_, __) => [],
-  );
-});
-
-/// Daily forecast (7 days)
-final dailyForecastProvider = FutureProvider.autoDispose<List<DailyForecast>>((ref) async {
-  final location = ref.watch(currentLocationProvider);
-  final weatherService = ref.watch(weatherApiServiceProvider);
-
-  return location.when(
-    data: (loc) async {
-      if (loc == null) return [];
-      final oneCall = await weatherService.getOneCallData(loc.lat, loc.lon);
-      return oneCall.daily;
-    },
-    loading: () => [],
-    error: (_, __) => [],
-  );
-});
-
-/// Saved locations list
-final savedLocationsProvider = FutureProvider<List<SavedLocation>>((ref) async {
-  final locationService = ref.watch(locationServiceProvider);
-  return await locationService.getSavedLocations();
-});
-
-/// City search results
-final citySearchProvider = FutureProvider.family<List<GeoLocation>, String>((ref, query) async {
-  if (query.length < 2) return [];
-  final weatherService = ref.watch(weatherApiServiceProvider);
-  return await weatherService.searchCity(query);
-});
-
-/// Current location state notifier
-class CurrentLocationNotifier extends StateNotifier<AsyncValue<SavedLocation?>> {
-  final LocationService _locationService;
-
-  CurrentLocationNotifier(this._locationService) : super(const AsyncValue.loading()) {
-    _loadCurrentLocation();
-  }
-
-  Future<void> _loadCurrentLocation() async {
-    try {
-      final saved = await _locationService.getCurrentLocation();
-      if (saved != null) {
-        state = AsyncValue.data(saved);
-      } else {
-        await detectCurrentLocation();
-      }
-    } catch (e, st) {
-      state = AsyncValue.error(e, st);
-    }
-  }
-
-  /// Detect current location via GPS
-  Future<void> detectCurrentLocation() async {
-    state = const AsyncValue.loading();
-    try {
-      final position = await _locationService.getCurrentPosition();
-      if (position != null) {
-        final location = SavedLocation(
-          id: LocationService.generateLocationId(position.latitude, position.longitude),
-          name: 'Current Location',
-          country: '',
-          countryCode: '',
-          lat: position.latitude,
-          lon: position.longitude,
-          isCurrent: true,
-        );
-        await _locationService.setCurrentLocation(location);
-        state = AsyncValue.data(location);
-      } else {
-        // Default to a known location if GPS unavailable
-        state = AsyncValue.data(SavedLocation(
-          id: 'default',
-          name: 'London',
-          country: 'United Kingdom',
-          countryCode: 'GB',
-          lat: 51.5074,
-          lon: -0.1278,
-          isCurrent: false,
-        ));
-      }
-    } catch (e, st) {
-      state = AsyncValue.error(e, st);
-    }
-  }
-
-  /// Set location manually
-  Future<void> setLocation(SavedLocation location) async {
-    await _locationService.setCurrentLocation(location);
-    state = AsyncValue.data(location);
-  }
+enum TempUnit { celsius, fahrenheit }
+class AppSettings {
+  final TempUnit unit; final ThemeMode themeMode;
+  const AppSettings({this.unit = TempUnit.celsius, this.themeMode = ThemeMode.dark});
 }
+final settingsProvider = StateNotifierProvider<SettingsNotifier, AppSettings>((ref) => SettingsNotifier());
+final themeModeProvider = Provider<ThemeMode>((ref) => ref.watch(settingsProvider).themeMode);
+class SettingsNotifier extends StateNotifier<AppSettings> {
+  SettingsNotifier() : super(const AppSettings());
+  void toggleUnit() => state = AppSettings(
+    unit: state.unit == TempUnit.celsius ? TempUnit.fahrenheit : TempUnit.celsius, themeMode: state.themeMode);
+}
+
+class CurrentWeather {
+  final double temp, feelsLike, tempMin, tempMax, windSpeed, windDeg, rainProb, uv;
+  final int humidity, conditionCode, aqi;
+  final String condition, description, city;
+  const CurrentWeather({required this.temp, required this.feelsLike, required this.tempMin, required this.tempMax,
+    required this.humidity, required this.windSpeed, required this.windDeg, required this.conditionCode,
+    required this.condition, required this.description, required this.aqi, required this.city,
+    required this.rainProb, required this.uv});
+}
+
+class HourlyData {
+  final DateTime time; final double temp, rainProb; final int conditionCode;
+  const HourlyData({required this.time, required this.temp, required this.conditionCode, required this.rainProb});
+}
+
+class DailyData {
+  final DateTime date; final double high, low, rainProb; final int conditionCode;
+  const DailyData({required this.date, required this.high, required this.low, required this.conditionCode, required this.rainProb});
+}
+
+final currentWeatherProvider = Provider<CurrentWeather>((ref) => const CurrentWeather(
+  temp: 24, feelsLike: 26, tempMin: 19, tempMax: 28, humidity: 62, windSpeed: 14, windDeg: 220,
+  conditionCode: 801, condition: 'Clouds', description: 'few clouds', aqi: 72, city: 'New Delhi', rainProb: 0.2, uv: 7.3));
+
+final hourlyForecastProvider = Provider<List<HourlyData>>((ref) {
+  final now = DateTime.now();
+  return List.generate(24, (i) => HourlyData(time: now.add(Duration(hours: i)),
+    temp: 22 + (6 * (0.5 - (i - 12).abs() / 12.0)), conditionCode: i > 14 && i < 18 ? 500 : 800, rainProb: i > 14 && i < 18 ? 0.7 : 0.1));
+});
+
+final dailyForecastProvider = Provider<List<DailyData>>((ref) {
+  final now = DateTime.now();
+  return List.generate(7, (i) => DailyData(date: now.add(Duration(days: i)),
+    high: 26 + (i % 3) * 2.0, low: 18 + (i % 2) * 1.5, conditionCode: [800, 801, 802, 500, 800, 801, 500][i], rainProb: [0.1, 0.2, 0.3, 0.8, 0.05, 0.15, 0.6][i]));
+});
