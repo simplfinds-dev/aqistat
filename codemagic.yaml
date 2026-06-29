@@ -1,0 +1,54 @@
+workflows:
+  android-release:
+    name: Aqistat Android Release
+    # Linux is cheaper and plenty for Android. Change to mac_mini_m2 if you prefer.
+    instance_type: linux_x2
+    max_build_duration: 60
+    environment:
+      flutter: stable
+      groups:
+        # Create this variable group in Codemagic and add your two API keys:
+        #   OWM_KEY  = your OpenWeatherMap key
+        #   WAQI_KEY = your WAQI token
+        - aqistat_secrets
+      android_signing:
+        # Reference name of the keystore you upload in Codemagic
+        # (Settings > Code signing identities > Android keystores).
+        - aqistat_keystore
+    scripts:
+      - name: Generate key.properties for release signing
+        script: |
+          cat > "$CM_BUILD_DIR/android/key.properties" <<EOF
+          storePassword=$CM_KEYSTORE_PASSWORD
+          keyPassword=$CM_KEY_PASSWORD
+          keyAlias=$CM_KEY_ALIAS
+          storeFile=$CM_KEYSTORE_PATH
+          EOF
+      - name: Get Flutter packages
+        script: flutter pub get
+      - name: Generate launcher icons
+        script: dart run flutter_launcher_icons
+      - name: Build release APK
+        script: |
+          flutter build apk --release \
+            --dart-define=OWM_KEY=$OWM_KEY \
+            --dart-define=WAQI_KEY=$WAQI_KEY \
+            --android-skip-build-dependency-validation
+      - name: Build release App Bundle (for Play Store)
+        script: |
+          flutter build appbundle --release \
+            --dart-define=OWM_KEY=$OWM_KEY \
+            --dart-define=WAQI_KEY=$WAQI_KEY \
+            --android-skip-build-dependency-validation
+    artifacts:
+      - build/app/outputs/flutter-apk/*.apk
+      - build/app/outputs/bundle/release/*.aab
+      - build/app/outputs/**/mapping.txt
+    publishing:
+      email:
+        recipients:
+          # Replace with your email to get the APK/AAB + build status.
+          - simplfinds.dev@example.com
+        notify:
+          success: true
+          failure: true
