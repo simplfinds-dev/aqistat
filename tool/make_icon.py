@@ -1,101 +1,92 @@
-"""Generates the Aqistat app icon at multiple resolutions.
-Design: rounded-square gradient (indigo -> teal) with stylized
-air/wind currents and a subtle AQI dot, evoking 'air quality + weather'.
+"""Generates the Aqistat app icon — clean, modern, anti-aliased.
+
+Design: rounded-square indigo->teal gradient with three smooth tapering
+'air current' swooshes and a soft glowing sun/AQI dot. Rendered at 4x and
+downscaled with LANCZOS for crisp, smooth edges.
 """
 import math
 import os
 from PIL import Image, ImageDraw, ImageFilter
 
-BASE = 1024
+OUT = 1024
+SS = 4               # supersample factor
+S = OUT * SS         # render size
 
 
 def lerp(a, b, t):
     return tuple(int(a[i] + (b[i] - a[i]) * t) for i in range(3))
 
 
-def make_icon(size=BASE, rounded=True):
-    img = Image.new("RGBA", (size, size), (0, 0, 0, 0))
-    draw = ImageDraw.Draw(img)
+def smooth_swoosh(draw, cx, cy, length, width, color):
+    """Draw one smooth tapering air-current curve with rounded ends."""
+    pts = []
+    steps = 220
+    for i in range(steps + 1):
+        t = i / steps
+        x = cx + t * length
+        # gentle S-curve
+        y = cy - math.sin(t * math.pi) * (S * 0.045)
+        pts.append((x, y))
+    # taper: thick in middle, thin at ends -> draw overlapping circles
+    for i, (x, y) in enumerate(pts):
+        t = i / len(pts)
+        taper = math.sin(t * math.pi)          # 0..1..0
+        r = max(1, width * (0.25 + 0.75 * taper))
+        draw.ellipse([x - r, y - r, x + r, y + r], fill=color)
 
-    # --- diagonal gradient background ---
-    c1 = (108, 99, 255)   # indigo  #6C63FF
-    c2 = (0, 212, 170)    # teal    #00D4AA
-    c_dark = (26, 31, 56) # deep navy for depth
-    for y in range(size):
-        for_band = y / size
-        # blend navy at top-left to gradient
-        row = lerp(c1, c2, for_band)
-        draw.line([(0, y), (size, y)], fill=row + (255,))
 
-    # add a soft diagonal indigo glow (top-left)
-    glow = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+def make_icon(rounded=True):
+    img = Image.new("RGBA", (S, S), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+
+    # --- diagonal gradient background (indigo -> teal) ---
+    c_top = (108, 99, 255)    # indigo  #6C63FF
+    c_bot = (0, 212, 170)     # teal    #00D4AA
+    for y in range(S):
+        d.line([(0, y), (S, y)], fill=lerp(c_top, c_bot, y / S) + (255,))
+
+    # soft indigo glow top-left for depth
+    glow = Image.new("RGBA", (S, S), (0, 0, 0, 0))
     gd = ImageDraw.Draw(glow)
-    gd.ellipse([-size*0.3, -size*0.3, size*0.6, size*0.6],
-               fill=(108, 99, 255, 150))
-    glow = glow.filter(ImageFilter.GaussianBlur(size*0.18))
+    gd.ellipse([-S * 0.25, -S * 0.25, S * 0.55, S * 0.55], fill=(124, 110, 255, 130))
+    glow = glow.filter(ImageFilter.GaussianBlur(S * 0.16))
     img = Image.alpha_composite(img, glow)
-    draw = ImageDraw.Draw(img)
+    d = ImageDraw.Draw(img)
 
-    # --- wind / air current strokes (white, rounded) ---
-    sw = int(size * 0.055)  # stroke width
-    white = (255, 255, 255, 235)
+    # --- three smooth air-current swooshes ---
+    white = (255, 255, 255, 240)
+    base_w = S * 0.030
+    smooth_swoosh(d, S * 0.20, S * 0.42, S * 0.46, base_w, white)
+    smooth_swoosh(d, S * 0.18, S * 0.56, S * 0.54, base_w * 1.15, white)
+    smooth_swoosh(d, S * 0.22, S * 0.70, S * 0.40, base_w * 0.9, white)
 
-    def wind_line(cx, cy, length, curl):
-        # a curved current ending in a little curl
-        pts = []
-        for i in range(0, 101):
-            t = i / 100
-            x = cx + t * length
-            y = cy + math.sin(t * math.pi) * (size * 0.04)
-            pts.append((x, y))
-        draw.line(pts, fill=white, width=sw, joint="curve")
-        # curl at the end
-        ex, ey = pts[-1]
-        r = curl
-        draw.arc([ex - r, ey - r*2, ex + r, ey],
-                 start=270, end=170, fill=white, width=sw)
-
-    cx = size * 0.20
-    wind_line(cx, size * 0.40, size * 0.42, size * 0.085)
-    wind_line(cx, size * 0.56, size * 0.52, size * 0.10)
-    wind_line(cx, size * 0.72, size * 0.36, size * 0.075)
-
-    # --- AQI status dot (teal-green) top right ---
-    dr = size * 0.075
-    dx, dy = size * 0.76, size * 0.26
-    # glow behind dot
-    dot_glow = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+    # --- glowing sun / AQI dot (top-right) ---
+    dx, dy, dr = S * 0.72, S * 0.30, S * 0.085
+    dot_glow = Image.new("RGBA", (S, S), (0, 0, 0, 0))
     dgd = ImageDraw.Draw(dot_glow)
-    dgd.ellipse([dx - dr*2, dy - dr*2, dx + dr*2, dy + dr*2],
-                fill=(0, 255, 190, 180))
-    dot_glow = dot_glow.filter(ImageFilter.GaussianBlur(size*0.03))
+    dgd.ellipse([dx - dr * 2.4, dy - dr * 2.4, dx + dr * 2.4, dy + dr * 2.4],
+                fill=(180, 255, 230, 200))
+    dot_glow = dot_glow.filter(ImageFilter.GaussianBlur(S * 0.035))
     img = Image.alpha_composite(img, dot_glow)
-    draw = ImageDraw.Draw(img)
-    draw.ellipse([dx - dr, dy - dr, dx + dr, dy + dr],
-                 fill=(180, 255, 230, 255))
+    d = ImageDraw.Draw(img)
+    d.ellipse([dx - dr, dy - dr, dx + dr, dy + dr], fill=(255, 255, 255, 255))
 
-    # --- rounded corners mask ---
+    # --- rounded corners ---
     if rounded:
-        radius = int(size * 0.22)
-        mask = Image.new("L", (size, size), 0)
-        md = ImageDraw.Draw(mask)
-        md.rounded_rectangle([0, 0, size, size], radius=radius, fill=255)
+        radius = int(S * 0.235)
+        mask = Image.new("L", (S, S), 0)
+        ImageDraw.Draw(mask).rounded_rectangle([0, 0, S, S], radius=radius, fill=255)
         img.putalpha(mask)
 
-    return img
+    # downscale for smooth anti-aliasing
+    return img.resize((OUT, OUT), Image.LANCZOS)
 
 
 def main():
     out_dir = os.path.join(os.path.dirname(__file__), "..", "assets", "icon")
     os.makedirs(out_dir, exist_ok=True)
-
-    master = make_icon(BASE, rounded=True)
-    master.save(os.path.join(out_dir, "icon.png"))
-
-    # also a non-rounded full-bleed version for adaptive foreground
-    full = make_icon(BASE, rounded=False)
-    full.save(os.path.join(out_dir, "icon_foreground.png"))
-
+    make_icon(rounded=True).save(os.path.join(out_dir, "icon.png"))
+    make_icon(rounded=False).save(os.path.join(out_dir, "icon_foreground.png"))
     print("Icons written to", os.path.abspath(out_dir))
 
 
