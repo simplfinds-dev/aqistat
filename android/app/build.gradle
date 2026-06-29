@@ -50,9 +50,11 @@ android {
             // Use the real release keystore when key.properties is present
             // (e.g. on Codemagic), otherwise fall back to debug signing locally.
             signingConfig = keystorePropertiesFile.exists() ? signingConfigs.release : signingConfigs.debug
-            // Enable code shrinking + obfuscation to protect against reverse engineering.
-            minifyEnabled true
-            shrinkResources true
+            // NOTE: R8 shrinking/obfuscation is temporarily disabled to guarantee a
+            // working release build. Keep-rules for the plugins are already in
+            // proguard-rules.pro, so this can be flipped back to `true` later.
+            minifyEnabled false
+            shrinkResources false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
