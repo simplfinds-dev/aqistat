@@ -202,21 +202,32 @@ class _AqiPill extends StatelessWidget {
     if (aqi <= 0) return const SizedBox.shrink();
     final color = AppColors.getAqiColor(aqi);
     return Center(
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        decoration: BoxDecoration(
-          color: color.withOpacity(0.12),
-          borderRadius: BorderRadius.circular(30),
-          border: Border.all(color: color.withOpacity(0.4)),
-          boxShadow: [BoxShadow(color: color.withOpacity(0.2), blurRadius: 12)],
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () => _showDetailSheet(
+          context,
+          'Air Quality · AQI $aqi',
+          '${WeatherHelpers.getAqiLevel(aqi)}\n\n${_aqiAdvice(aqi)}',
+          accent: color,
         ),
-        child: Row(mainAxisSize: MainAxisSize.min, children: [
-          Container(width: 8, height: 8, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
-          const SizedBox(width: 8),
-          Text('AQI $aqi', style: TextStyle(color: color, fontWeight: FontWeight.w700, fontSize: 14)),
-          const SizedBox(width: 6),
-          Text('• ${WeatherHelpers.getAqiLevel(aqi)}', style: TextStyle(color: color.withOpacity(0.8), fontSize: 13)),
-        ]),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.12),
+            borderRadius: BorderRadius.circular(30),
+            border: Border.all(color: color.withOpacity(0.4)),
+            boxShadow: [BoxShadow(color: color.withOpacity(0.2), blurRadius: 12)],
+          ),
+          child: Row(mainAxisSize: MainAxisSize.min, children: [
+            Container(width: 8, height: 8, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
+            const SizedBox(width: 8),
+            Text('AQI $aqi', style: TextStyle(color: color, fontWeight: FontWeight.w700, fontSize: 14)),
+            const SizedBox(width: 6),
+            Text('• ${WeatherHelpers.getAqiLevel(aqi)}', style: TextStyle(color: color.withOpacity(0.8), fontSize: 13)),
+            const SizedBox(width: 6),
+            Icon(Icons.chevron_right, color: color.withOpacity(0.7), size: 16),
+          ]),
+        ),
       ),
     );
   }
@@ -235,22 +246,30 @@ class _Hourly extends StatelessWidget {
           itemBuilder: (context, i) {
             final h = hourly[i];
             final isNow = i == 0;
-            return Container(
-              width: 68,
-              margin: const EdgeInsets.symmetric(horizontal: 4),
-              padding: const EdgeInsets.symmetric(vertical: 12),
-              decoration: BoxDecoration(
-                color: isNow ? AppColors.primary.withOpacity(0.15) : AppColors.glassWhite,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: isNow ? AppColors.primary.withOpacity(0.4) : AppColors.glassBorder),
+            return GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () => _showDetailSheet(
+                context,
+                isNow ? 'Right now' : DateFormat('h a · EEE, d MMM').format(h.time),
+                '${WeatherHelpers.getWeatherEmoji(h.conditionCode)}   ${h.temp.round()}°\n\nForecast temperature for this hour.',
               ),
-              child: Column(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                Text(isNow ? 'Now' : DateFormat('ha').format(h.time),
-                    style: TextStyle(fontSize: 11, color: isNow ? AppColors.primary : AppColors.textGrey, fontWeight: FontWeight.w600)),
-                Text(WeatherHelpers.getWeatherEmoji(h.conditionCode), style: const TextStyle(fontSize: 22)),
-                Text('${h.temp.round()}°',
-                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: isNow ? AppColors.textWhite : AppColors.textGrey)),
-              ]),
+              child: Container(
+                width: 68,
+                margin: const EdgeInsets.symmetric(horizontal: 4),
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                decoration: BoxDecoration(
+                  color: isNow ? AppColors.primary.withOpacity(0.15) : AppColors.glassWhite,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: isNow ? AppColors.primary.withOpacity(0.4) : AppColors.glassBorder),
+                ),
+                child: Column(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                  Text(isNow ? 'Now' : DateFormat('ha').format(h.time),
+                      style: TextStyle(fontSize: 11, color: isNow ? AppColors.primary : AppColors.textGrey, fontWeight: FontWeight.w600)),
+                  Text(WeatherHelpers.getWeatherEmoji(h.conditionCode), style: const TextStyle(fontSize: 22)),
+                  Text('${h.temp.round()}°',
+                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: isNow ? AppColors.textWhite : AppColors.textGrey)),
+                ]),
+              ),
             );
           },
         ),
@@ -264,11 +283,29 @@ class _Details extends StatelessWidget {
   Widget build(BuildContext context) => Padding(
         padding: const EdgeInsets.symmetric(horizontal: 20),
         child: Row(children: [
-          Expanded(child: _Tile(icon: Icons.water_drop_outlined, label: 'Humidity', value: '${w.humidity}%')),
+          Expanded(
+              child: _Tile(
+                  icon: Icons.water_drop_outlined,
+                  label: 'Humidity',
+                  value: '${w.humidity}%',
+                  onTap: () => _showDetailSheet(context, 'Humidity · ${w.humidity}%',
+                      'The amount of water vapour in the air. Higher humidity makes it feel warmer and stickier than the actual temperature.'))),
           const SizedBox(width: 12),
-          Expanded(child: _Tile(icon: Icons.air, label: 'Wind', value: '${w.windSpeed.round()} km/h')),
+          Expanded(
+              child: _Tile(
+                  icon: Icons.air,
+                  label: 'Wind',
+                  value: '${w.windSpeed.round()} km/h',
+                  onTap: () => _showDetailSheet(context, 'Wind · ${w.windSpeed.round()} km/h',
+                      'Current wind speed near the surface. A stronger breeze makes it feel cooler than the thermometer reads.'))),
           const SizedBox(width: 12),
-          Expanded(child: _Tile(icon: Icons.umbrella_outlined, label: 'Rain', value: '${(w.rainProb * 100).round()}%')),
+          Expanded(
+              child: _Tile(
+                  icon: Icons.umbrella_outlined,
+                  label: 'Rain',
+                  value: '${(w.rainProb * 100).round()}%',
+                  onTap: () => _showDetailSheet(context, 'Chance of rain · ${(w.rainProb * 100).round()}%',
+                      'The probability of precipitation right now. Consider carrying an umbrella when this is above ~40%.'))),
         ]),
       );
 }
@@ -276,18 +313,23 @@ class _Details extends StatelessWidget {
 class _Tile extends StatelessWidget {
   final IconData icon;
   final String label, value;
-  const _Tile({required this.icon, required this.label, required this.value});
+  final VoidCallback? onTap;
+  const _Tile({required this.icon, required this.label, required this.value, this.onTap});
   @override
-  Widget build(BuildContext context) => Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(color: AppColors.glassWhite, borderRadius: BorderRadius.circular(18), border: Border.all(color: AppColors.glassBorder)),
-        child: Column(children: [
-          Icon(icon, color: AppColors.textGrey, size: 20),
-          const SizedBox(height: 8),
-          Text(value, style: const TextStyle(color: AppColors.textWhite, fontWeight: FontWeight.w700, fontSize: 16)),
-          const SizedBox(height: 2),
-          Text(label, style: const TextStyle(color: AppColors.textMuted, fontSize: 11)),
-        ]),
+  Widget build(BuildContext context) => GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(color: AppColors.glassWhite, borderRadius: BorderRadius.circular(18), border: Border.all(color: AppColors.glassBorder)),
+          child: Column(children: [
+            Icon(icon, color: AppColors.textGrey, size: 20),
+            const SizedBox(height: 8),
+            Text(value, style: const TextStyle(color: AppColors.textWhite, fontWeight: FontWeight.w700, fontSize: 16)),
+            const SizedBox(height: 2),
+            Text(label, style: const TextStyle(color: AppColors.textMuted, fontSize: 11)),
+          ]),
+        ),
       );
 }
 
@@ -302,14 +344,23 @@ class _Daily extends StatelessWidget {
             const Text('7-DAY FORECAST',
                 style: TextStyle(color: AppColors.textMuted, fontSize: 12, fontWeight: FontWeight.w700, letterSpacing: 1.5)),
             const SizedBox(height: 14),
-            ...daily.map((d) => Padding(
+            ...daily.map((d) {
+              final isToday = d.date.day == DateTime.now().day;
+              return GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () => _showDetailSheet(
+                  context,
+                  isToday ? 'Today' : DateFormat('EEEE, d MMM').format(d.date),
+                  '${WeatherHelpers.getWeatherEmoji(d.conditionCode)}\n\nHigh ${d.high.round()}°    ·    Low ${d.low.round()}°',
+                ),
+                child: Padding(
                   padding: const EdgeInsets.symmetric(vertical: 8),
                   child: Row(children: [
                     SizedBox(
                         width: 42,
-                        child: Text(d.date.day == DateTime.now().day ? 'Today' : DateFormat('EEE').format(d.date),
+                        child: Text(isToday ? 'Today' : DateFormat('EEE').format(d.date),
                             style: TextStyle(
-                                color: d.date.day == DateTime.now().day ? AppColors.textWhite : AppColors.textGrey, fontSize: 14))),
+                                color: isToday ? AppColors.textWhite : AppColors.textGrey, fontSize: 14))),
                     const SizedBox(width: 8),
                     Text(WeatherHelpers.getWeatherEmoji(d.conditionCode), style: const TextStyle(fontSize: 18)),
                     const Spacer(),
@@ -327,7 +378,9 @@ class _Daily extends StatelessWidget {
                     const SizedBox(width: 8),
                     Text('${d.high.round()}°', style: const TextStyle(color: AppColors.textWhite, fontSize: 14, fontWeight: FontWeight.w600)),
                   ]),
-                )),
+                ),
+              );
+            }),
           ],
         ),
       );
@@ -353,4 +406,55 @@ class _Outfit extends StatelessWidget {
           ],
         ),
       );
+}
+
+
+/// Health guidance text for a given US AQI value.
+String _aqiAdvice(int aqi) {
+  if (aqi <= 50) return 'Air quality is great — perfect for outdoor activities.';
+  if (aqi <= 100) return 'Acceptable. Unusually sensitive people should limit long periods of outdoor exertion.';
+  if (aqi <= 150) return 'Sensitive groups (children, the elderly, and people with asthma) should cut back on prolonged outdoor exertion.';
+  if (aqi <= 200) return 'Everyone may begin to feel effects. Limit time outdoors and wear a mask if you are sensitive.';
+  if (aqi <= 300) return 'Health alert — avoid outdoor exertion and keep windows closed.';
+  return 'Hazardous. Stay indoors and use air purification if possible.';
+}
+
+/// Shared bottom sheet used by the tappable cards on the home screen.
+void _showDetailSheet(BuildContext context, String title, String body, {Color? accent}) {
+  showModalBottomSheet(
+    context: context,
+    backgroundColor: AppColors.cardDark,
+    shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+    builder: (_) => SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(24, 12, 24, 28),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 20),
+                decoration: BoxDecoration(
+                    color: AppColors.glassBorder,
+                    borderRadius: BorderRadius.circular(2)),
+              ),
+            ),
+            Text(title,
+                style: TextStyle(
+                    color: accent ?? AppColors.textWhite,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w700)),
+            const SizedBox(height: 12),
+            Text(body,
+                style: const TextStyle(
+                    color: AppColors.textGrey, fontSize: 15, height: 1.6)),
+          ],
+        ),
+      ),
+    ),
+  );
 }
