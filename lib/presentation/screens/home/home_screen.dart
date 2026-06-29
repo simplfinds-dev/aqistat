@@ -8,6 +8,7 @@ import '../../widgets/animated_background.dart';
 import '../../widgets/glass_card.dart';
 import '../../widgets/aqi_gauge.dart';
 import '../../widgets/temp_trend_chart.dart';
+import '../../widgets/weather_icon.dart';
 import '../settings/settings_screen.dart';
 
 class HomeScreen extends ConsumerWidget {
@@ -249,8 +250,7 @@ class _HeroTemp extends StatelessWidget {
                 BoxShadow(color: Colors.white.withOpacity(0.28), blurRadius: 34),
               ],
             ),
-            child: Text(WeatherHelpers.getWeatherEmoji(w.conditionCode),
-                style: const TextStyle(fontSize: 78)),
+            child: WeatherIcon(conditionCode: w.conditionCode, size: 92),
           ),
         ],
       ),
@@ -361,7 +361,7 @@ class _Hourly extends StatelessWidget {
                 child: Column(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
                   Text(isNow ? 'Now' : DateFormat('ha').format(h.time),
                       style: TextStyle(fontSize: 11, color: isNow ? AppColors.primary : AppColors.textGrey, fontWeight: FontWeight.w600)),
-                  Text(WeatherHelpers.getWeatherEmoji(h.conditionCode), style: const TextStyle(fontSize: 22)),
+                  WeatherIcon(conditionCode: h.conditionCode, size: 30),
                   Text('${h.temp.round()}°',
                       style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: isNow ? AppColors.textWhite : AppColors.textGrey)),
                 ]),
@@ -458,7 +458,7 @@ class _Daily extends StatelessWidget {
                             style: TextStyle(
                                 color: isToday ? AppColors.textWhite : AppColors.textGrey, fontSize: 14))),
                     const SizedBox(width: 8),
-                    Text(WeatherHelpers.getWeatherEmoji(d.conditionCode), style: const TextStyle(fontSize: 18)),
+                    WeatherIcon(conditionCode: d.conditionCode, size: 28),
                     const Spacer(),
                     Text('${d.low.round()}°', style: const TextStyle(color: AppColors.textMuted, fontSize: 14)),
                     const SizedBox(width: 8),
