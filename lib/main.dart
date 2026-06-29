@@ -22,6 +22,13 @@ class AqistatApp extends StatelessWidget {
     debugShowCheckedModeBanner: false,
     themeMode: ThemeMode.dark,
     darkTheme: ThemeData(useMaterial3: true, brightness: Brightness.dark, scaffoldBackgroundColor: const Color(0xFF0A0E21)),
+    // Wrap every route in a transparent Material so Text widgets inherit a
+    // proper text style. Without a Material ancestor, Flutter paints the
+    // tell-tale yellow underline under all text.
+    builder: (context, child) => Material(
+      type: MaterialType.transparency,
+      child: child!,
+    ),
     home: const HomeScreen(),
   );
 }
