@@ -47,3 +47,5 @@ env.json
 .env
 *.keystore
 key.properties
+*.jks
+key.properties
