@@ -3,15 +3,19 @@ plugins {
     id "kotlin-android"
     id "dev.flutter.flutter-gradle-plugin"
 }
+
 android {
     namespace = "com.aqistat.app"
     compileSdk = flutter.compileSdkVersion
+
     compileOptions {
         coreLibraryDesugaringEnabled true
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
     }
+
     kotlinOptions { jvmTarget = "11" }
+
     defaultConfig {
         applicationId = "com.aqistat.app"
         minSdk = 21
@@ -20,7 +24,23 @@ android {
         versionName = flutter.versionName
         multiDexEnabled true
     }
-    buildTypes { release { signingConfig = signingConfigs.debug } }
+
+    buildTypes {
+        release {
+            // Debug signing for now; replace with your release keystore before Play Store.
+            signingConfig = signingConfigs.debug
+            // Enable code shrinking + obfuscation to protect against reverse engineering.
+            minifyEnabled true
+            shrinkResources true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
 }
-dependencies { coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.1.4' }
-flutter { source = "../.." }
+
+dependencies {
+    coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.1.4'
+}
+
+flutter {
+    source = "../.."
+}

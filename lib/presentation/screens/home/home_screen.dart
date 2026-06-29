@@ -6,6 +6,7 @@ import '../../../core/utils/weather_helpers.dart';
 import '../../providers/weather_provider.dart';
 import '../../widgets/animated_background.dart';
 import '../../widgets/glass_card.dart';
+import '../settings/settings_screen.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -41,7 +42,7 @@ class _Header extends StatelessWidget {
   const _Header({required this.city});
   @override
   Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.fromLTRB(24, 16, 24, 0),
+    padding: const EdgeInsets.fromLTRB(24, 16, 16, 0),
     child: Row(children: [
       const Icon(Icons.location_on, color: AppColors.accent, size: 18),
       const SizedBox(width: 6),
@@ -51,6 +52,10 @@ class _Header extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(color: AppColors.glassWhite, borderRadius: BorderRadius.circular(20), border: Border.all(color: AppColors.glassBorder)),
         child: Text(DateFormat('EEE, d MMM').format(DateTime.now()), style: const TextStyle(color: AppColors.textGrey, fontSize: 12)),
+      ),
+      IconButton(
+        icon: const Icon(Icons.settings_outlined, color: AppColors.textGrey, size: 22),
+        onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsScreen())),
       ),
     ]),
   );
