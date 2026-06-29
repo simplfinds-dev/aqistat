@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Aqistat — Privacy Policy & Terms</title>
+  <meta name="description" content="Privacy Policy and Terms of Service for the Aqistat weather and air-quality app." />
+  <style>
+    :root {
+      --bg: #0A0E21;
+      --bg2: #111328;
+      --card: #1A1F38;
+      --primary: #6C63FF;
+      --accent: #00D4AA;
+      --white: #F8F9FA;
+      --grey: #9BA4B5;
+      --muted: #5C6378;
+      --border: rgba(255,255,255,0.08);
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(160deg, #0A0E21 0%, #111328 50%, #1A1F38 100%);
+      background-attachment: fixed;
+      color: var(--white);
+      line-height: 1.7;
+      min-height: 100vh;
+    }
+    .wrap { max-width: 760px; margin: 0 auto; padding: 48px 24px 80px; }
+    .logo {
+      width: 72px; height: 72px; border-radius: 20px;
+      background: linear-gradient(135deg, var(--primary), var(--accent));
+      display: flex; align-items: center; justify-content: center;
+      font-size: 38px; margin-bottom: 20px;
+    }
+    h1 { font-size: 34px; font-weight: 800; letter-spacing: -1px; margin-bottom: 6px; }
+    .tagline { color: var(--grey); font-size: 16px; margin-bottom: 8px; }
+    .updated { color: var(--muted); font-size: 13px; margin-bottom: 36px; }
+    .tabs { display: flex; gap: 8px; margin-bottom: 32px; flex-wrap: wrap; }
+    .tab {
+      padding: 10px 20px; border-radius: 30px; cursor: pointer;
+      background: rgba(255,255,255,0.05); border: 1px solid var(--border);
+      color: var(--grey); font-size: 14px; font-weight: 600; transition: all .2s;
+    }
+    .tab.active { background: rgba(108,99,255,0.15); border-color: var(--primary); color: var(--white); }
+    .section { display: none; }
+    .section.active { display: block; animation: fade .3s ease; }
+    @keyframes fade { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+    .card {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 18px; padding: 24px; margin-bottom: 16px;
+    }
+    h2 { font-size: 19px; font-weight: 700; margin-bottom: 10px; color: var(--white); }
+    p { color: var(--grey); font-size: 15px; }
+    a { color: var(--accent); text-decoration: none; }
+    .footer { text-align: center; color: var(--muted); font-size: 13px; margin-top: 48px; }
+    .footer a { color: var(--grey); }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="logo">🌬️</div>
+    <h1>Aqistat</h1>
+    <p class="tagline">Living Weather Intelligence with Global Air-Quality Awareness</p>
+    <p class="updated">Last updated: June 2026</p>
+
+    <div class="tabs">
+      <div class="tab active" onclick="show('privacy', this)">Privacy Policy</div>
+      <div class="tab" onclick="show('terms', this)">Terms of Service</div>
+    </div>
+
+    <div id="privacy" class="section active"></div>
+    <div id="terms" class="section"></div>
+
+    <div class="footer">
+      <p>Aqistat &middot; Contact: <a href="mailto:support@aqistat.app">support@aqistat.app</a></p>
+    </div>
+  </div>
+
+  <script src="content.js"></script>
+</body>
+</html>

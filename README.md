@@ -86,3 +86,33 @@ This app is hardened for production:
 
 Aqistat collects no personal data, has no accounts, and uses no trackers.
 See the in-app Privacy Policy for full details.
+
+---
+
+## App Icon
+
+A custom Aqistat icon (indigo-to-teal gradient with wind currents + AQI status dot)
+is generated for all Android densities including adaptive icons.
+
+To regenerate after changing the source art (`assets/icon/icon.png`):
+
+```bash
+dart run tool/make_icon.py   # regenerate the PNG art (needs Python + Pillow)
+dart run flutter_launcher_icons   # generate all Android densities
+```
+
+---
+
+## Hosted Privacy Policy (for Play Store)
+
+The Google Play Console requires a public privacy policy URL. A ready-to-host
+page lives in the `docs/` folder. Enable GitHub Pages to publish it for free:
+
+1. Push this repo to GitHub
+2. Go to your repo **Settings -> Pages**
+3. Under "Build and deployment", set **Source = Deploy from a branch**
+4. Choose branch **main** and folder **/docs**, then **Save**
+5. Your privacy policy goes live at:
+   `https://<your-username>.github.io/aqistat/`
+
+Paste that URL into the Play Console "Privacy Policy" field during submission.
