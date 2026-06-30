@@ -12,6 +12,25 @@ class WeatherHelpers {
     if (code == 802) return '⛅';
     return '☁️';
   }
+  static String pollutantName(String key) {
+    switch (key) {
+      case 'pm25':
+        return 'PM2.5';
+      case 'pm10':
+        return 'PM10';
+      case 'o3':
+        return 'Ozone (O₃)';
+      case 'no2':
+        return 'Nitrogen Dioxide';
+      case 'so2':
+        return 'Sulfur Dioxide';
+      case 'co':
+        return 'Carbon Monoxide';
+      default:
+        return key.toUpperCase();
+    }
+  }
+
   static String getAqiLevel(int aqi) {
     if (aqi <= 50) return 'Good';
     if (aqi <= 100) return 'Moderate';

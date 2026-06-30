@@ -59,11 +59,15 @@ class CurrentWeather {
   final double temp, feelsLike, tempMin, tempMax, windSpeed, windDeg, rainProb, uv;
   final int humidity, conditionCode, aqi;
   final String condition, description, city;
+  final String dominantPollutant;
+  final Map<String, double> pollutants;
   const CurrentWeather({
     required this.temp, required this.feelsLike, required this.tempMin, required this.tempMax,
     required this.humidity, required this.windSpeed, required this.windDeg, required this.conditionCode,
     required this.condition, required this.description, required this.aqi, required this.city,
     required this.rainProb, required this.uv,
+    this.dominantPollutant = '',
+    this.pollutants = const {},
   });
 }
 
@@ -88,8 +92,51 @@ class WeatherBundle {
   const WeatherBundle({required this.current, required this.hourly, required this.daily});
 }
 
-// ===== SELECTED CITY =====
-final cityProvider = StateProvider<String>((ref) => 'New Delhi');
+// ===== SELECTED LOCATION =====
+final coordsProvider = StateProvider<(double, double)?>((ref) => null);
+
+final cityProvider =
+    StateNotifierProvider<CityNotifier, String>((ref) => CityNotifier(ref));
+
+class CityNotifier extends StateNotifier<String> {
+  CityNotifier(this._ref) : super('New Delhi') {
+    _load();
+  }
+  final Ref _ref;
+  static const _kCity = 'pref_city';
+  static const _kRecent = 'pref_recent_cities';
+
+  Future<void> _load() async {
+    final p = await SharedPreferences.getInstance();
+    final c = p.getString(_kCity);
+    if (c != null && c.trim().isNotEmpty) state = c;
+  }
+
+  /// Set the city from a search: clears any GPS coords, persists it as the
+  /// last city, and records it in the recent list.
+  Future<void> setCity(String city) async {
+    final v = city.trim();
+    if (v.isEmpty) return;
+    _ref.read(coordsProvider.notifier).state = null;
+    state = v;
+    final p = await SharedPreferences.getInstance();
+    await p.setString(_kCity, v);
+    final recent = p.getStringList(_kRecent) ?? <String>[];
+    recent.removeWhere((e) => e.toLowerCase() == v.toLowerCase());
+    recent.insert(0, v);
+    while (recent.length > 5) {
+      recent.removeLast();
+    }
+    await p.setStringList(_kRecent, recent);
+  }
+}
+
+final recentCitiesProvider =
+    FutureProvider.autoDispose<List<String>>((ref) async {
+  ref.watch(cityProvider); // re-read whenever the city changes
+  final p = await SharedPreferences.getInstance();
+  return p.getStringList('pref_recent_cities') ?? <String>[];
+});
 
 // ===== WEATHER SERVICE =====
 final _dioProvider = Provider<Dio>((ref) => Dio(BaseOptions(
@@ -100,6 +147,7 @@ final _dioProvider = Provider<Dio>((ref) => Dio(BaseOptions(
 final weatherBundleProvider = FutureProvider.autoDispose<WeatherBundle>((ref) async {
   final dio = ref.watch(_dioProvider);
   final city = ref.watch(cityProvider);
+  final coords = ref.watch(coordsProvider);
   final owmKey = EnvConfig.openWeatherKey;
   final waqiKey = EnvConfig.waqiKey;
 
@@ -107,10 +155,14 @@ final weatherBundleProvider = FutureProvider.autoDispose<WeatherBundle>((ref) as
     throw Exception('Missing OpenWeatherMap API key. Add it to env.json.');
   }
 
+  // Location params: GPS coordinates take priority over the city name.
+  final Map<String, dynamic> locParams =
+      coords != null ? {'lat': coords.$1, 'lon': coords.$2} : {'q': city};
+
   // 1) Current weather
   final cur = await dio.get(
     'https://api.openweathermap.org/data/2.5/weather',
-    queryParameters: {'q': city, 'appid': owmKey, 'units': 'metric'},
+    queryParameters: {...locParams, 'appid': owmKey, 'units': 'metric'},
   );
   final cd = cur.data as Map<String, dynamic>;
   final coord = cd['coord'] as Map<String, dynamic>;
@@ -122,6 +174,8 @@ final weatherBundleProvider = FutureProvider.autoDispose<WeatherBundle>((ref) as
 
   // 2) AQI from WAQI (fallback to OWM air_pollution if needed)
   int aqi = 0;
+  String dominantPollutant = '';
+  final Map<String, double> pollutants = {};
   try {
     if (waqiKey.isNotEmpty) {
       final aq = await dio.get(
@@ -130,8 +184,19 @@ final weatherBundleProvider = FutureProvider.autoDispose<WeatherBundle>((ref) as
       );
       final ad = aq.data as Map<String, dynamic>;
       if (ad['status'] == 'ok') {
-        final v = ad['data']['aqi'];
+        final data = ad['data'] as Map<String, dynamic>;
+        final v = data['aqi'];
         aqi = v is int ? v : int.tryParse('$v') ?? 0;
+        dominantPollutant = (data['dominentpol'] as String?) ?? '';
+        final iaqi = data['iaqi'];
+        if (iaqi is Map) {
+          for (final key in const ['pm25', 'pm10', 'o3', 'no2', 'so2', 'co']) {
+            final entry = iaqi[key];
+            if (entry is Map && entry['v'] is num) {
+              pollutants[key] = (entry['v'] as num).toDouble();
+            }
+          }
+        }
       }
     }
   } catch (_) {
@@ -141,7 +206,7 @@ final weatherBundleProvider = FutureProvider.autoDispose<WeatherBundle>((ref) as
   // 3) Forecast (5 day / 3 hour)
   final fc = await dio.get(
     'https://api.openweathermap.org/data/2.5/forecast',
-    queryParameters: {'q': city, 'appid': owmKey, 'units': 'metric'},
+    queryParameters: {...locParams, 'appid': owmKey, 'units': 'metric'},
   );
   final fd = fc.data as Map<String, dynamic>;
   final list = (fd['list'] as List).cast<Map<String, dynamic>>();
@@ -203,6 +268,8 @@ final weatherBundleProvider = FutureProvider.autoDispose<WeatherBundle>((ref) as
     city: cd['name'] as String? ?? city,
     rainProb: hourly.isNotEmpty ? hourly.first.rainProb : 0,
     uv: 0,
+    dominantPollutant: dominantPollutant,
+    pollutants: pollutants,
   );
 
   return WeatherBundle(current: current, hourly: hourly, daily: daily.take(7).toList());

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:intl/intl.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/weather_helpers.dart';
@@ -89,7 +90,8 @@ class HomeScreen extends ConsumerWidget {
                   SliverToBoxAdapter(child: _Hourly(hourly: bundle.hourly, unit: unit)),
                   const SliverToBoxAdapter(child: SizedBox(height: 14)),
                   SliverToBoxAdapter(child: _TrendCard(hourly: bundle.hourly, unit: unit)),
-                  SliverToBoxAdapter(child: _AqiCard(aqi: w.aqi)),
+                  SliverToBoxAdapter(child: _PrecipCard(hourly: bundle.hourly)),
+                  SliverToBoxAdapter(child: _AqiCard(w: w)),
                   SliverToBoxAdapter(child: _DayRating(w: w)),
                   const SliverToBoxAdapter(child: SizedBox(height: 10)),
                   SliverToBoxAdapter(child: _Details(w: w)),
@@ -123,6 +125,11 @@ class _Header extends ConsumerWidget {
                 style: const TextStyle(color: AppColors.textWhite, fontSize: 16, fontWeight: FontWeight.w600)),
           ),
           IconButton(
+            icon: const Icon(Icons.my_location, color: AppColors.textGrey, size: 20),
+            tooltip: 'Use my location',
+            onPressed: () => _useMyLocation(context, ref),
+          ),
+          IconButton(
             icon: const Icon(Icons.search, color: AppColors.textGrey, size: 22),
             onPressed: () => _searchCity(context, ref),
           ),
@@ -151,15 +158,53 @@ class _Header extends ConsumerWidget {
       builder: (ctx) => AlertDialog(
         backgroundColor: AppColors.cardDark,
         title: const Text('Search City', style: TextStyle(color: AppColors.textWhite)),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          style: const TextStyle(color: AppColors.textWhite),
-          decoration: const InputDecoration(
-            hintText: 'e.g. London, Tokyo, Mumbai',
-            hintStyle: TextStyle(color: AppColors.textMuted),
-          ),
-          onSubmitted: (v) => _apply(ctx, ref, v),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            TextField(
+              controller: controller,
+              autofocus: true,
+              style: const TextStyle(color: AppColors.textWhite),
+              decoration: const InputDecoration(
+                hintText: 'e.g. London, Tokyo, Mumbai',
+                hintStyle: TextStyle(color: AppColors.textMuted),
+              ),
+              onSubmitted: (v) => _apply(ctx, ref, v),
+            ),
+            const SizedBox(height: 16),
+            Consumer(builder: (context, ref2, _) {
+              final recent =
+                  ref2.watch(recentCitiesProvider).valueOrNull ?? const <String>[];
+              if (recent.isEmpty) return const SizedBox.shrink();
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('RECENT',
+                      style: TextStyle(
+                          color: AppColors.textMuted,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 1.2)),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: recent
+                        .map((c) => ActionChip(
+                              label: Text(c,
+                                  style: const TextStyle(
+                                      color: AppColors.textWhite, fontSize: 13)),
+                              backgroundColor: AppColors.glassWhite,
+                              side: const BorderSide(color: AppColors.glassBorder),
+                              onPressed: () => _apply(ctx, ref, c),
+                            ))
+                        .toList(),
+                  ),
+                ],
+              );
+            }),
+          ],
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
@@ -174,8 +219,55 @@ class _Header extends ConsumerWidget {
 
   void _apply(BuildContext ctx, WidgetRef ref, String value) {
     final v = value.trim();
-    if (v.isNotEmpty) ref.read(cityProvider.notifier).state = v;
+    if (v.isNotEmpty) ref.read(cityProvider.notifier).setCity(v);
     Navigator.pop(ctx);
+  }
+
+  Future<void> _useMyLocation(BuildContext context, WidgetRef ref) async {
+    try {
+      if (!await Geolocator.isLocationServiceEnabled()) {
+        if (context.mounted) {
+          _msg(context, 'Location is off',
+              'Please turn on location services on your device, then try again.');
+        }
+        return;
+      }
+      var perm = await Geolocator.checkPermission();
+      if (perm == LocationPermission.denied) {
+        perm = await Geolocator.requestPermission();
+      }
+      if (perm == LocationPermission.denied ||
+          perm == LocationPermission.deniedForever) {
+        if (context.mounted) {
+          _msg(context, 'Permission needed',
+              'Location permission is required to use your current location. You can still search for a city.');
+        }
+        return;
+      }
+      final pos = await Geolocator.getCurrentPosition();
+      ref.read(coordsProvider.notifier).state = (pos.latitude, pos.longitude);
+    } catch (_) {
+      if (context.mounted) {
+        _msg(context, 'Could not locate you',
+            'Something went wrong getting your location. Try again or search for a city.');
+      }
+    }
+  }
+
+  void _msg(BuildContext context, String title, String body) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.cardDark,
+        title: Text(title,
+            style: const TextStyle(color: AppColors.textWhite, fontSize: 17)),
+        content: Text(body, style: const TextStyle(color: AppColors.textGrey)),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx), child: const Text('OK')),
+        ],
+      ),
+    );
   }
 }
 
@@ -262,24 +354,19 @@ class _HeroTemp extends StatelessWidget {
 }
 
 class _AqiCard extends StatelessWidget {
-  final int aqi;
-  const _AqiCard({required this.aqi});
+  final CurrentWeather w;
+  const _AqiCard({required this.w});
   @override
   Widget build(BuildContext context) {
-    if (aqi <= 0) return const SizedBox.shrink();
-    final color = AppColors.getAqiColor(aqi);
+    if (w.aqi <= 0) return const SizedBox.shrink();
+    final color = AppColors.getAqiColor(w.aqi);
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
-      onTap: () => _showDetailSheet(
-        context,
-        'Air Quality · AQI $aqi',
-        '${WeatherHelpers.getAqiLevel(aqi)}\n\n${_aqiAdvice(aqi)}',
-        accent: color,
-      ),
+      onTap: () => _showAqiSheet(context, w),
       child: GlassCard(
         child: Row(
           children: [
-            AqiGauge(aqi: aqi, size: 132),
+            AqiGauge(aqi: w.aqi, size: 132),
             const SizedBox(width: 16),
             Expanded(
               child: Column(
@@ -292,15 +379,21 @@ class _AqiCard extends StatelessWidget {
                           fontWeight: FontWeight.w700,
                           letterSpacing: 1.5)),
                   const SizedBox(height: 8),
-                  Text(WeatherHelpers.getAqiLevel(aqi),
+                  Text(WeatherHelpers.getAqiLevel(w.aqi),
                       style: TextStyle(
                           color: color,
                           fontSize: 18,
                           fontWeight: FontWeight.w700)),
                   const SizedBox(height: 6),
-                  Text(_aqiAdvice(aqi),
+                  Text(
+                      w.dominantPollutant.isNotEmpty
+                          ? 'Main pollutant: ${WeatherHelpers.pollutantName(w.dominantPollutant)}'
+                          : _aqiAdvice(w.aqi),
                       style: const TextStyle(
                           color: AppColors.textGrey, fontSize: 12, height: 1.4)),
+                  const SizedBox(height: 4),
+                  const Text('Tap for pollutant details',
+                      style: TextStyle(color: AppColors.textMuted, fontSize: 11)),
                 ],
               ),
             ),
@@ -671,6 +764,187 @@ class _DayRating extends StatelessWidget {
                     style: const TextStyle(
                         color: AppColors.textGrey, fontSize: 12, height: 1.4)),
               ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+
+/// Rich AQI bottom sheet: level, advice, dominant pollutant and a breakdown
+/// of individual pollutant sub-indices.
+void _showAqiSheet(BuildContext context, CurrentWeather w) {
+  final color = AppColors.getAqiColor(w.aqi);
+  showModalBottomSheet(
+    context: context,
+    backgroundColor: AppColors.cardDark,
+    isScrollControlled: true,
+    shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+    builder: (_) => SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(24, 12, 24, 28),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 20),
+                decoration: BoxDecoration(
+                    color: AppColors.glassBorder,
+                    borderRadius: BorderRadius.circular(2)),
+              ),
+            ),
+            Row(
+              children: [
+                Text('AQI ${w.aqi}',
+                    style: TextStyle(
+                        color: color, fontSize: 26, fontWeight: FontWeight.w800)),
+                const SizedBox(width: 10),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                      color: color.withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(20)),
+                  child: Text(WeatherHelpers.getAqiLevel(w.aqi),
+                      style: TextStyle(
+                          color: color,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600)),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Text(_aqiAdvice(w.aqi),
+                style: const TextStyle(
+                    color: AppColors.textGrey, fontSize: 14, height: 1.6)),
+            if (w.dominantPollutant.isNotEmpty) ...[
+              const SizedBox(height: 14),
+              Text('Main pollutant: ${WeatherHelpers.pollutantName(w.dominantPollutant)}',
+                  style: const TextStyle(
+                      color: AppColors.textWhite,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600)),
+            ],
+            if (w.pollutants.isNotEmpty) ...[
+              const SizedBox(height: 18),
+              const Text('POLLUTANTS',
+                  style: TextStyle(
+                      color: AppColors.textMuted,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 1.5)),
+              const SizedBox(height: 12),
+              ...w.pollutants.entries.map((e) => Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 6),
+                    child: Row(
+                      children: [
+                        SizedBox(
+                            width: 140,
+                            child: Text(WeatherHelpers.pollutantName(e.key),
+                                style: const TextStyle(
+                                    color: AppColors.textGrey, fontSize: 13))),
+                        Expanded(
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(3),
+                            child: LinearProgressIndicator(
+                              value: (e.value / 300).clamp(0.02, 1.0),
+                              minHeight: 6,
+                              backgroundColor: AppColors.glassWhite,
+                              valueColor: AlwaysStoppedAnimation(
+                                  AppColors.getAqiColor(e.value.round())),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        SizedBox(
+                          width: 34,
+                          child: Text(e.value.round().toString(),
+                              textAlign: TextAlign.right,
+                              style: const TextStyle(
+                                  color: AppColors.textWhite,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600)),
+                        ),
+                      ],
+                    ),
+                  )),
+            ],
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
+/// Hourly precipitation probability as a small bar chart.
+class _PrecipCard extends StatelessWidget {
+  final List<HourlyData> hourly;
+  const _PrecipCard({required this.hourly});
+  @override
+  Widget build(BuildContext context) {
+    final items = hourly.take(8).toList();
+    if (items.isEmpty) return const SizedBox.shrink();
+    final hasRain = items.any((h) => h.rainProb > 0.05);
+    return GlassCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Text('PRECIPITATION',
+                  style: TextStyle(
+                      color: AppColors.textMuted,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 1.5)),
+              const Spacer(),
+              if (!hasRain)
+                const Text('No rain expected',
+                    style: TextStyle(color: AppColors.textGrey, fontSize: 12)),
+            ],
+          ),
+          const SizedBox(height: 16),
+          SizedBox(
+            height: 92,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: items.map((h) {
+                final p = h.rainProb.clamp(0.0, 1.0);
+                return Expanded(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      Text('${(p * 100).round()}%',
+                          style: const TextStyle(
+                              color: AppColors.textGrey, fontSize: 9)),
+                      const SizedBox(height: 4),
+                      Container(
+                        height: 6 + 52 * p,
+                        margin: const EdgeInsets.symmetric(horizontal: 3),
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            begin: Alignment.bottomCenter,
+                            end: Alignment.topCenter,
+                            colors: [AppColors.primary, AppColors.accent],
+                          ),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(DateFormat('ha').format(h.time),
+                          style: const TextStyle(
+                              color: AppColors.textMuted, fontSize: 9)),
+                    ],
+                  ),
+                );
+              }).toList(),
             ),
           ),
         ],
