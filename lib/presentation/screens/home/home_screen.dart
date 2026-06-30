@@ -75,6 +75,7 @@ class HomeScreen extends ConsumerWidget {
           ),
           data: (bundle) {
             final w = bundle.current;
+            final unit = ref.watch(settingsProvider).unit;
             return RefreshIndicator(
               color: AppColors.accent,
               backgroundColor: AppColors.cardDark,
@@ -83,16 +84,17 @@ class HomeScreen extends ConsumerWidget {
                 physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
                 slivers: [
                   SliverToBoxAdapter(child: _Header(city: w.city)),
-                  SliverToBoxAdapter(child: _HeroTemp(w: w)),
+                  SliverToBoxAdapter(child: _HeroTemp(w: w, unit: unit)),
                   const SliverToBoxAdapter(child: SizedBox(height: 18)),
-                  SliverToBoxAdapter(child: _Hourly(hourly: bundle.hourly)),
+                  SliverToBoxAdapter(child: _Hourly(hourly: bundle.hourly, unit: unit)),
                   const SliverToBoxAdapter(child: SizedBox(height: 14)),
-                  SliverToBoxAdapter(child: _TrendCard(hourly: bundle.hourly)),
+                  SliverToBoxAdapter(child: _TrendCard(hourly: bundle.hourly, unit: unit)),
                   SliverToBoxAdapter(child: _AqiCard(aqi: w.aqi)),
+                  SliverToBoxAdapter(child: _DayRating(w: w)),
                   const SliverToBoxAdapter(child: SizedBox(height: 10)),
                   SliverToBoxAdapter(child: _Details(w: w)),
                   const SliverToBoxAdapter(child: SizedBox(height: 14)),
-                  SliverToBoxAdapter(child: _Daily(daily: bundle.daily)),
+                  SliverToBoxAdapter(child: _Daily(daily: bundle.daily, unit: unit)),
                   SliverToBoxAdapter(child: _Outfit(w: w)),
                   const SliverToBoxAdapter(child: SizedBox(height: 100)),
                 ],
@@ -179,7 +181,8 @@ class _Header extends ConsumerWidget {
 
 class _HeroTemp extends StatelessWidget {
   final CurrentWeather w;
-  const _HeroTemp({required this.w});
+  final TempUnit unit;
+  const _HeroTemp({required this.w, required this.unit});
   @override
   Widget build(BuildContext context) {
     final desc = w.description.isEmpty
@@ -218,7 +221,7 @@ class _HeroTemp extends StatelessWidget {
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('${w.temp.round()}',
+                    Text('${convertTemp(w.temp, unit).round()}',
                         style: const TextStyle(
                             color: Colors.white,
                             fontSize: 80,
@@ -237,7 +240,7 @@ class _HeroTemp extends StatelessWidget {
                 ),
                 const SizedBox(height: 6),
                 Text(
-                    'H:${w.tempMax.round()}°   L:${w.tempMin.round()}°   Feels ${w.feelsLike.round()}°',
+                    'H:${tempLabel(w.tempMax, unit)}   L:${tempLabel(w.tempMin, unit)}   Feels ${tempLabel(w.feelsLike, unit)}',
                     style: const TextStyle(color: Colors.white70, fontSize: 13)),
               ],
             ),
@@ -310,7 +313,8 @@ class _AqiCard extends StatelessWidget {
 
 class _TrendCard extends StatelessWidget {
   final List<HourlyData> hourly;
-  const _TrendCard({required this.hourly});
+  final TempUnit unit;
+  const _TrendCard({required this.hourly, required this.unit});
   @override
   Widget build(BuildContext context) => GlassCard(
         child: Column(
@@ -323,7 +327,7 @@ class _TrendCard extends StatelessWidget {
                     fontWeight: FontWeight.w700,
                     letterSpacing: 1.5)),
             const SizedBox(height: 16),
-            TempTrendChart(hourly: hourly),
+            TempTrendChart(hourly: hourly, unit: unit),
           ],
         ),
       );
@@ -331,7 +335,8 @@ class _TrendCard extends StatelessWidget {
 
 class _Hourly extends StatelessWidget {
   final List<HourlyData> hourly;
-  const _Hourly({required this.hourly});
+  final TempUnit unit;
+  const _Hourly({required this.hourly, required this.unit});
   @override
   Widget build(BuildContext context) => SizedBox(
         height: 120,
@@ -347,7 +352,7 @@ class _Hourly extends StatelessWidget {
               onTap: () => _showDetailSheet(
                 context,
                 isNow ? 'Right now' : DateFormat('h a · EEE, d MMM').format(h.time),
-                '${WeatherHelpers.getWeatherEmoji(h.conditionCode)}   ${h.temp.round()}°\n\nForecast temperature for this hour.',
+                '${WeatherHelpers.getWeatherEmoji(h.conditionCode)}   ${tempLabel(h.temp, unit)}\n\nForecast temperature for this hour.',
               ),
               child: Container(
                 width: 68,
@@ -362,7 +367,7 @@ class _Hourly extends StatelessWidget {
                   Text(isNow ? 'Now' : DateFormat('ha').format(h.time),
                       style: TextStyle(fontSize: 11, color: isNow ? AppColors.primary : AppColors.textGrey, fontWeight: FontWeight.w600)),
                   WeatherIcon(conditionCode: h.conditionCode, size: 30),
-                  Text('${h.temp.round()}°',
+                  Text(tempLabel(h.temp, unit),
                       style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: isNow ? AppColors.textWhite : AppColors.textGrey)),
                 ]),
               ),
@@ -431,7 +436,8 @@ class _Tile extends StatelessWidget {
 
 class _Daily extends StatelessWidget {
   final List<DailyData> daily;
-  const _Daily({required this.daily});
+  final TempUnit unit;
+  const _Daily({required this.daily, required this.unit});
   @override
   Widget build(BuildContext context) => GlassCard(
         child: Column(
@@ -447,7 +453,7 @@ class _Daily extends StatelessWidget {
                 onTap: () => _showDetailSheet(
                   context,
                   isToday ? 'Today' : DateFormat('EEEE, d MMM').format(d.date),
-                  '${WeatherHelpers.getWeatherEmoji(d.conditionCode)}\n\nHigh ${d.high.round()}°    ·    Low ${d.low.round()}°',
+                  '${WeatherHelpers.getWeatherEmoji(d.conditionCode)}\n\nHigh ${tempLabel(d.high, unit)}    ·    Low ${tempLabel(d.low, unit)}',
                 ),
                 child: Padding(
                   padding: const EdgeInsets.symmetric(vertical: 8),
@@ -460,7 +466,7 @@ class _Daily extends StatelessWidget {
                     const SizedBox(width: 8),
                     WeatherIcon(conditionCode: d.conditionCode, size: 28),
                     const Spacer(),
-                    Text('${d.low.round()}°', style: const TextStyle(color: AppColors.textMuted, fontSize: 14)),
+                    Text(tempLabel(d.low, unit), style: const TextStyle(color: AppColors.textMuted, fontSize: 14)),
                     const SizedBox(width: 8),
                     SizedBox(
                         width: 60,
@@ -472,7 +478,7 @@ class _Daily extends StatelessWidget {
                                 backgroundColor: AppColors.glassWhite,
                                 valueColor: AlwaysStoppedAnimation(AppColors.primary.withOpacity(0.6))))),
                     const SizedBox(width: 8),
-                    Text('${d.high.round()}°', style: const TextStyle(color: AppColors.textWhite, fontSize: 14, fontWeight: FontWeight.w600)),
+                    Text(tempLabel(d.high, unit), style: const TextStyle(color: AppColors.textWhite, fontSize: 14, fontWeight: FontWeight.w600)),
                   ]),
                 ),
               );
@@ -553,4 +559,122 @@ void _showDetailSheet(BuildContext context, String title, String body, {Color? a
       ),
     ),
   );
+}
+
+
+/// A computed "day rating" from temperature comfort, rain, air quality
+/// and wind — gives the user a quick at-a-glance verdict.
+class _DayRating extends StatelessWidget {
+  final CurrentWeather w;
+  const _DayRating({required this.w});
+
+  @override
+  Widget build(BuildContext context) {
+    double score = 100;
+    final t = w.temp; // comfort logic stays in Celsius
+    if (t < 0 || t > 38) {
+      score -= 45;
+    } else if (t < 8 || t > 32) {
+      score -= 25;
+    } else if (t < 14 || t > 28) {
+      score -= 10;
+    }
+    score -= w.rainProb.clamp(0, 1) * 35;
+    final a = w.aqi;
+    if (a > 200) {
+      score -= 40;
+    } else if (a > 150) {
+      score -= 28;
+    } else if (a > 100) {
+      score -= 16;
+    } else if (a > 50) {
+      score -= 6;
+    }
+    if (w.windSpeed > 40) {
+      score -= 15;
+    } else if (w.windSpeed > 25) {
+      score -= 7;
+    }
+    final s = score.clamp(0, 100).round();
+    final label = s >= 80
+        ? 'Great day'
+        : s >= 60
+            ? 'Good day'
+            : s >= 40
+                ? 'Fair day'
+                : 'Tough day';
+    final color = s >= 80
+        ? AppColors.aqiGood
+        : s >= 60
+            ? AppColors.aqiModerate
+            : s >= 40
+                ? AppColors.warning
+                : AppColors.aqiUnhealthy;
+
+    final reasons = <String>[];
+    if (w.rainProb > 0.4) reasons.add('rain likely');
+    if (a > 100) reasons.add('poor air quality');
+    if (t > 32) {
+      reasons.add('it\'s hot');
+    } else if (t < 8) {
+      reasons.add('it\'s cold');
+    }
+    if (w.windSpeed > 25) reasons.add('quite windy');
+    final reason = reasons.isEmpty
+        ? 'Pleasant conditions all round.'
+        : 'Heads up: ${reasons.join(', ')}.';
+
+    return GlassCard(
+      child: Row(
+        children: [
+          SizedBox(
+            width: 56,
+            height: 56,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                SizedBox(
+                  width: 56,
+                  height: 56,
+                  child: CircularProgressIndicator(
+                    value: s / 100,
+                    strokeWidth: 5,
+                    backgroundColor: AppColors.glassWhite,
+                    valueColor: AlwaysStoppedAnimation(color),
+                  ),
+                ),
+                Text('$s',
+                    style: const TextStyle(
+                        color: AppColors.textWhite,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 16)),
+              ],
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('DAY RATING',
+                    style: TextStyle(
+                        color: AppColors.textMuted,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 1.5)),
+                const SizedBox(height: 6),
+                Text(label,
+                    style: TextStyle(
+                        color: color, fontSize: 18, fontWeight: FontWeight.w700)),
+                const SizedBox(height: 4),
+                Text(reason,
+                    style: const TextStyle(
+                        color: AppColors.textGrey, fontSize: 12, height: 1.4)),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }

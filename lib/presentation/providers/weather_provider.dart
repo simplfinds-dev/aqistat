@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/config/env_config.dart';
 
 // ===== SETTINGS =====
@@ -19,11 +20,39 @@ final settingsProvider =
 final themeModeProvider = Provider<ThemeMode>((ref) => ref.watch(settingsProvider).themeMode);
 
 class SettingsNotifier extends StateNotifier<AppSettings> {
-  SettingsNotifier() : super(const AppSettings());
-  void toggleUnit() => state = state.copyWith(
-      unit: state.unit == TempUnit.celsius ? TempUnit.fahrenheit : TempUnit.celsius);
+  SettingsNotifier() : super(const AppSettings()) {
+    _load();
+  }
+  static const _kUnit = 'pref_unit_fahrenheit';
+
+  Future<void> _load() async {
+    final p = await SharedPreferences.getInstance();
+    if (p.getBool(_kUnit) ?? false) {
+      state = state.copyWith(unit: TempUnit.fahrenheit);
+    }
+  }
+
+  Future<void> _persist() async {
+    final p = await SharedPreferences.getInstance();
+    await p.setBool(_kUnit, state.unit == TempUnit.fahrenheit);
+  }
+
+  void toggleUnit() {
+    state = state.copyWith(
+        unit: state.unit == TempUnit.celsius ? TempUnit.fahrenheit : TempUnit.celsius);
+    _persist();
+  }
+
   void setTheme(ThemeMode m) => state = state.copyWith(themeMode: m);
 }
+
+/// Converts a Celsius value to the user's selected unit.
+double convertTemp(double celsius, TempUnit unit) =>
+    unit == TempUnit.fahrenheit ? celsius * 9 / 5 + 32 : celsius;
+
+/// Rounded temperature string with a degree sign, in the selected unit.
+String tempLabel(double celsius, TempUnit unit) =>
+    '${convertTemp(celsius, unit).round()}°';
 
 // ===== DATA MODELS =====
 class CurrentWeather {

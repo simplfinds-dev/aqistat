@@ -6,21 +6,23 @@ import '../providers/weather_provider.dart';
 /// A smooth gradient line chart of upcoming temperatures.
 class TempTrendChart extends StatelessWidget {
   final List<HourlyData> hourly;
-  const TempTrendChart({super.key, required this.hourly});
+  final TempUnit unit;
+  const TempTrendChart({super.key, required this.hourly, required this.unit});
 
   @override
   Widget build(BuildContext context) {
     return SizedBox(
       height: 96,
       width: double.infinity,
-      child: CustomPaint(painter: _TrendPainter(hourly)),
+      child: CustomPaint(painter: _TrendPainter(hourly, unit)),
     );
   }
 }
 
 class _TrendPainter extends CustomPainter {
   final List<HourlyData> data;
-  _TrendPainter(this.data);
+  final TempUnit unit;
+  _TrendPainter(this.data, this.unit);
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -90,7 +92,7 @@ class _TrendPainter extends CustomPainter {
       if (i % 2 == 0 || isEdge) {
         canvas.drawCircle(pts[i], 3, Paint()..color = AppColors.textWhite);
         tp.text = TextSpan(
-          text: '${temps[i].round()}°',
+          text: '${convertTemp(temps[i], unit).round()}°',
           style: const TextStyle(
               color: AppColors.textGrey, fontSize: 10, fontWeight: FontWeight.w600),
         );
