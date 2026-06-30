@@ -92,6 +92,7 @@ class HomeScreen extends ConsumerWidget {
                   SliverToBoxAdapter(child: _TrendCard(hourly: bundle.hourly, unit: unit)),
                   SliverToBoxAdapter(child: _PrecipCard(hourly: bundle.hourly)),
                   SliverToBoxAdapter(child: _AqiCard(w: w)),
+                  SliverToBoxAdapter(child: _UvCard(uv: w.uv)),
                   SliverToBoxAdapter(child: _DayRating(w: w)),
                   const SliverToBoxAdapter(child: SizedBox(height: 10)),
                   SliverToBoxAdapter(child: _Details(w: w)),
@@ -945,6 +946,86 @@ class _PrecipCard extends StatelessWidget {
                   ),
                 );
               }).toList(),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+
+/// UV index card with level + sun-protection advice (live data from Open-Meteo).
+class _UvCard extends StatelessWidget {
+  final double uv;
+  const _UvCard({required this.uv});
+  @override
+  Widget build(BuildContext context) {
+    final v = uv;
+    final level = v < 3
+        ? 'Low'
+        : v < 6
+            ? 'Moderate'
+            : v < 8
+                ? 'High'
+                : v < 11
+                    ? 'Very High'
+                    : 'Extreme';
+    final color = v < 3
+        ? AppColors.aqiGood
+        : v < 6
+            ? AppColors.aqiModerate
+            : v < 8
+                ? AppColors.warning
+                : v < 11
+                    ? AppColors.aqiUnhealthy
+                    : AppColors.aqiVeryUnhealthy;
+    final advice = v < 3
+        ? 'Minimal protection needed — enjoy the outdoors.'
+        : v < 6
+            ? 'Wear sunglasses; use SPF 30 if out for a while.'
+            : v < 8
+                ? 'Seek shade around midday — sunscreen + hat.'
+                : v < 11
+                    ? 'Extra protection essential; avoid sun 10am–4pm.'
+                    : 'Take all precautions — unprotected skin burns fast.';
+
+    return GlassCard(
+      child: Row(
+        children: [
+          Container(
+            width: 56,
+            height: 56,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: color.withOpacity(0.15),
+              border: Border.all(color: color.withOpacity(0.5), width: 2),
+            ),
+            child: Text(v.toStringAsFixed(v >= 10 ? 0 : 1),
+                style: TextStyle(
+                    color: color, fontSize: 18, fontWeight: FontWeight.w800)),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('UV INDEX',
+                    style: TextStyle(
+                        color: AppColors.textMuted,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 1.5)),
+                const SizedBox(height: 6),
+                Text(level,
+                    style: TextStyle(
+                        color: color, fontSize: 18, fontWeight: FontWeight.w700)),
+                const SizedBox(height: 4),
+                Text(advice,
+                    style: const TextStyle(
+                        color: AppColors.textGrey, fontSize: 12, height: 1.4)),
+              ],
             ),
           ),
         ],

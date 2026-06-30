@@ -253,6 +253,21 @@ final weatherBundleProvider = FutureProvider.autoDispose<WeatherBundle>((ref) as
     ));
   });
 
+  // UV index from Open-Meteo (free, no key required)
+  double uv = 0;
+  try {
+    final uvr = await dio.get(
+      'https://api.open-meteo.com/v1/forecast',
+      queryParameters: {'latitude': lat, 'longitude': lon, 'current': 'uv_index'},
+    );
+    final ud = uvr.data as Map<String, dynamic>;
+    final c = ud['current'] as Map<String, dynamic>?;
+    final v = c?['uv_index'];
+    if (v is num) uv = v.toDouble();
+  } catch (_) {
+    uv = 0;
+  }
+
   final current = CurrentWeather(
     temp: (main['temp'] as num).toDouble(),
     feelsLike: (main['feels_like'] as num).toDouble(),
@@ -267,7 +282,7 @@ final weatherBundleProvider = FutureProvider.autoDispose<WeatherBundle>((ref) as
     aqi: aqi,
     city: cd['name'] as String? ?? city,
     rainProb: hourly.isNotEmpty ? hourly.first.rainProb : 0,
-    uv: 0,
+    uv: uv,
     dominantPollutant: dominantPollutant,
     pollutants: pollutants,
   );
