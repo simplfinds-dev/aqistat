@@ -11,6 +11,7 @@ import '../../widgets/aqi_gauge.dart';
 import '../../widgets/temp_trend_chart.dart';
 import '../../widgets/weather_icon.dart';
 import '../settings/settings_screen.dart';
+import '../radar/radar_screen.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -143,6 +144,12 @@ class _Header extends ConsumerWidget {
                 border: Border.all(color: AppColors.glassBorder)),
             child: Text(DateFormat('EEE, d MMM').format(DateTime.now()),
                 style: const TextStyle(color: AppColors.textGrey, fontSize: 12)),
+          ),
+          IconButton(
+            icon: const Icon(Icons.radar, color: AppColors.textGrey, size: 21),
+            tooltip: 'Rain radar',
+            onPressed: () => Navigator.push(
+                context, MaterialPageRoute(builder: (_) => const RadarScreen())),
           ),
           IconButton(
             icon: const Icon(Icons.settings_outlined, color: AppColors.textGrey, size: 22),

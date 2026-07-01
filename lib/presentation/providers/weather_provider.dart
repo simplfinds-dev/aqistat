@@ -57,6 +57,7 @@ String tempLabel(double celsius, TempUnit unit) =>
 // ===== DATA MODELS =====
 class CurrentWeather {
   final double temp, feelsLike, tempMin, tempMax, windSpeed, windDeg, rainProb, uv;
+  final double lat, lon;
   final int humidity, conditionCode, aqi;
   final String condition, description, city;
   final String dominantPollutant;
@@ -66,6 +67,7 @@ class CurrentWeather {
     required this.humidity, required this.windSpeed, required this.windDeg, required this.conditionCode,
     required this.condition, required this.description, required this.aqi, required this.city,
     required this.rainProb, required this.uv,
+    this.lat = 0, this.lon = 0,
     this.dominantPollutant = '',
     this.pollutants = const {},
   });
@@ -283,6 +285,8 @@ final weatherBundleProvider = FutureProvider.autoDispose<WeatherBundle>((ref) as
     city: cd['name'] as String? ?? city,
     rainProb: hourly.isNotEmpty ? hourly.first.rainProb : 0,
     uv: uv,
+    lat: lat,
+    lon: lon,
     dominantPollutant: dominantPollutant,
     pollutants: pollutants,
   );
